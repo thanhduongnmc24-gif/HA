@@ -4,11 +4,12 @@
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
         Title="Home Assistant Smart Controller" Height="850" Width="1400"
-        WindowStartupLocation="CenterScreen" Background="#F0F2F5">
+        WindowStartupLocation="CenterScreen" Background="#F0F2F5"
+        FontFamily="Times New Roman">
 
     <Window.Resources>
         <Style x:Key="DeviceButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#0078D4"/>
+            <Setter Property="Background" Value="{Binding CurrentColor}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Padding" Value="10"/>
             <Setter Property="Margin" Value="5"/>
@@ -25,6 +26,13 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <DataTemplate x:Key="ColorItemTemplate">
+            <StackPanel Orientation="Horizontal">
+                <Border Width="16" Height="16" Background="{Binding}" Margin="0,0,8,0" BorderBrush="#CCC" BorderThickness="1"/>
+                <TextBlock Text="{Binding}"/>
+            </StackPanel>
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>
@@ -55,7 +63,7 @@
                                         <Setter Property="Template">
                                             <Setter.Value>
                                                 <ControlTemplate>
-                                                    <Expander Header="{Binding Name}" IsExpanded="True" FontSize="18" FontWeight="Bold" Margin="0,0,0,20" Foreground="#0078D4">
+                                                    <Expander Header="{Binding Name}" IsExpanded="True" FontSize="18" FontWeight="Bold" Margin="0,0,0,20" Foreground="#333">
                                                         <ItemsPresenter />
                                                     </Expander>
                                                 </ControlTemplate>
@@ -72,10 +80,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Button Content="{Binding Name}" 
-                                        Tag="{Binding EntityId}" 
-                                        Style="{StaticResource DeviceButtonStyle}"
-                                        Click="BtnToggleDevice_Click"/>
+                                <Button Content="{Binding Name}" Style="{StaticResource DeviceButtonStyle}" Click="BtnToggleDevice_Click"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -83,46 +88,102 @@
             </TabItem>
 
             <TabItem Header="⚙️ Cài Đặt">
-                <Grid Margin="20">
+                <Grid Margin="15">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="400"/>
+                        <ColumnDefinition Width="350"/>
+                        <ColumnDefinition Width="250"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Margin="0,0,20,0">
                         <TextBlock Text="CẤU HÌNH KẾT NỐI" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
-                        <TextBox x:Name="txtUrlSetting" Tag="URL Home Assistant" Margin="0,0,0,10" Padding="5"/>
-                        <TextBox x:Name="txtTokenSetting" Tag="Token" Margin="0,0,0,10" Height="60" TextWrapping="Wrap" Padding="5"/>
-                        <Button Content="🚀 LƯU KẾT NỐI" Click="BtnSaveAndConnect_Click" Height="35" Background="#4CAF50" Margin="0,0,0,20"/>
-
-                        <Separator Background="#DDD" Margin="0,10"/>
-
-                        <TextBlock Text="THÊM THIẾT BỊ" FontSize="18" FontWeight="Bold" Margin="0,10,0,15"/>
-                        <TextBlock Text="Tên thiết bị:"/>
-                        <TextBox x:Name="txtNewName" Margin="0,0,0,10" Padding="5"/>
-                        <TextBlock Text="Entity ID:"/>
-                        <TextBox x:Name="txtNewId" Margin="0,0,0,10" Padding="5"/>
-                        <TextBlock Text="Phòng/Nhóm:"/>
-                        <TextBox x:Name="txtNewRoom" Margin="0,0,0,15" Padding="5" Text="Phòng Khách"/>
-                        <Button Content="➕ THÊM MỚI" Click="BtnAddDevice_Click" Height="40" Background="#0078D4"/>
+                        <TextBlock Text="URL Home Assistant:"/>
+                        <TextBox x:Name="txtUrlSetting" Margin="0,0,0,10" Padding="5"/>
+                        <TextBlock Text="Mã Token:"/>
+                        <TextBox x:Name="txtTokenSetting" Margin="0,0,0,10" Height="60" TextWrapping="Wrap" Padding="5"/>
+                        <Button Content="🚀 LƯU KẾT NỐI" Click="BtnSaveAndConnect_Click" Height="35" Background="#4CAF50" Foreground="White"/>
                     </StackPanel>
 
-                    <Grid Grid.Column="1">
+                    <StackPanel Grid.Column="1" Margin="0,0,20,0">
+                        <TextBlock Text="THỨ TỰ NHÓM (PHÒNG)" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+                        <ListBox x:Name="lstGroups" ItemsSource="{Binding RoomsList, RelativeSource={RelativeSource AncestorType=Window}}" Height="120" Margin="0,0,0,10"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button Content="⬆️ Lên" Click="BtnMoveGroupUp_Click" Width="80" Height="30" Margin="0,0,10,0"/>
+                            <Button Content="⬇️ Xuống" Click="BtnMoveGroupDown_Click" Width="80" Height="30"/>
+                        </StackPanel>
+                        <TextBlock Text="* Chọn nhóm và bấm Lên/Xuống để sắp xếp bên tab Điều Khiển" TextWrapping="Wrap" FontSize="12" Foreground="#888" Margin="0,10,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="THÊM THIẾT BỊ MỚI" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                <TextBlock Text="Tên thiết bị:"/>
+                                <TextBox x:Name="txtNewName" Margin="0,0,0,10" Padding="5"/>
+                                <TextBlock Text="Entity ID:"/>
+                                <TextBox x:Name="txtNewId" Margin="0,0,0,10" Padding="5"/>
+                                <TextBlock Text="Phòng/Nhóm:"/>
+                                <TextBox x:Name="txtNewRoom" Margin="0,0,0,10" Padding="5" Text="Phòng Khách"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                <TextBlock Text="Màu lúc Bật:"/>
+                                <ComboBox x:Name="cbColorOn" Margin="0,0,0,10" Padding="5" ItemTemplate="{StaticResource ColorItemTemplate}" 
+                                          ItemsSource="{Binding AvailableColors, RelativeSource={RelativeSource AncestorType=Window}}" SelectedIndex="1"/>
+                                <TextBlock Text="Màu lúc Tắt:"/>
+                                <ComboBox x:Name="cbColorOff" Margin="0,0,0,10" Padding="5" ItemTemplate="{StaticResource ColorItemTemplate}"
+                                          ItemsSource="{Binding AvailableColors, RelativeSource={RelativeSource AncestorType=Window}}" SelectedIndex="0"/>
+                                <Button Content="➕ THÊM VÀO DANH SÁCH" Click="BtnAddDevice_Click" Height="35" Background="#0078D4" Foreground="White" Margin="0,5,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <Grid Grid.Row="1" Grid.ColumnSpan="3" Margin="0,20,0,0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Text="DANH SÁCH THIẾT BỊ (Sửa trực tiếp trên bảng)" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+                        <TextBlock Text="DANH SÁCH THIẾT BỊ (Sửa trực tiếp trên bảng)" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
                         <DataGrid Grid.Row="1" x:Name="dgDevices" AutoGenerateColumns="False" CanUserAddRows="False" 
-                                  Background="White" RowHeight="35" FontSize="14">
+                                  Background="White" RowHeight="40" FontSize="14">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Phòng" Binding="{Binding Room, UpdateSourceTrigger=PropertyChanged}" Width="150"/>
                                 <DataGridTextColumn Header="Tên Hiển Thị" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
-                                <DataGridTextColumn Header="Entity ID" Binding="{Binding EntityId, UpdateSourceTrigger=PropertyChanged}" Width="200"/>
-                                <DataGridTemplateColumn Header="Thao tác" Width="100">
-                                    <DataTemplate>
-                                        <Button Content="Xóa" Background="#F44336" Click="BtnDeleteDevice_Click" Height="25" Padding="5,0"/>
-                                    </DataTemplate>
+                                <DataGridTextColumn Header="Entity ID" Binding="{Binding EntityId, UpdateSourceTrigger=PropertyChanged}" Width="180"/>
+                                
+                                <DataGridTemplateColumn Header="Màu (Tắt)" Width="130">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox SelectedItem="{Binding ColorOff, UpdateSourceTrigger=PropertyChanged}" 
+                                                      ItemsSource="{Binding AvailableColors, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      ItemTemplate="{StaticResource ColorItemTemplate}" Margin="2"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Màu (Bật)" Width="130">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox SelectedItem="{Binding ColorOn, UpdateSourceTrigger=PropertyChanged}" 
+                                                      ItemsSource="{Binding AvailableColors, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      ItemTemplate="{StaticResource ColorItemTemplate}" Margin="2"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Thao tác" Width="80">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="Xóa" Background="#F44336" Foreground="White" Click="BtnDeleteDevice_Click" Height="25" Padding="5,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>

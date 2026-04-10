@@ -1,14 +1,20 @@
 {
   "version": 2,
-  "dgSpecHash": "cITM83Qlxeg=",
+  "dgSpecHash": "GR+XzJmFPJI=",
   "success": true,
   "projectFilePath": "/workspaces/HA/HA/HA.csproj",
   "expectedPackageFiles": [
+    "/home/codespace/.nuget/packages/materialdesigncolors/5.3.1/materialdesigncolors.5.3.1.nupkg.sha512",
+    "/home/codespace/.nuget/packages/materialdesignthemes/5.3.1/materialdesignthemes.5.3.1.nupkg.sha512",
     "/home/codespace/.nuget/packages/microsoft.net.illink.tasks/8.0.22/microsoft.net.illink.tasks.8.0.22.nupkg.sha512",
     "/home/codespace/.nuget/packages/microsoft.web.webview2/1.0.3856.49/microsoft.web.webview2.1.0.3856.49.nupkg.sha512",
+    "/home/codespace/.nuget/packages/microsoft.xaml.behaviors.wpf/1.1.77/microsoft.xaml.behaviors.wpf.1.1.77.nupkg.sha512",
     "/home/codespace/.nuget/packages/microsoft.netcore.app.ref/8.0.22/microsoft.netcore.app.ref.8.0.22.nupkg.sha512",
+    "/home/codespace/.nuget/packages/microsoft.netcore.app.runtime.win-x64/8.0.22/microsoft.netcore.app.runtime.win-x64.8.0.22.nupkg.sha512",
     "/home/codespace/.nuget/packages/microsoft.windowsdesktop.app.ref/8.0.22/microsoft.windowsdesktop.app.ref.8.0.22.nupkg.sha512",
+    "/home/codespace/.nuget/packages/microsoft.windowsdesktop.app.runtime.win-x64/8.0.22/microsoft.windowsdesktop.app.runtime.win-x64.8.0.22.nupkg.sha512",
     "/home/codespace/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.22/microsoft.aspnetcore.app.ref.8.0.22.nupkg.sha512",
+    "/home/codespace/.nuget/packages/microsoft.aspnetcore.app.runtime.win-x64/8.0.22/microsoft.aspnetcore.app.runtime.win-x64.8.0.22.nupkg.sha512",
     "/home/codespace/.nuget/packages/microsoft.netcore.app.host.win-x64/8.0.22/microsoft.netcore.app.host.win-x64.8.0.22.nupkg.sha512"
   ],
   "logs": []
