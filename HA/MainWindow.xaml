@@ -2,97 +2,69 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
-        Title="Home Assistant Controller - Phiên bản Tèo độ" Height="768" Width="1366"
-        WindowStartupLocation="CenterScreen"
-        Background="#F0F2F5"
-        FontFamily="Segoe UI">
+        Title="Home Assistant Smart Controller" Height="768" Width="1366"
+        WindowStartupLocation="CenterScreen" Background="#F0F2F5">
 
     <Window.Resources>
         <Style TargetType="Button">
             <Setter Property="Background" Value="#0078D4"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Padding" Value="10,5"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="6">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#005A9E"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="BorderBrush" Value="#CCCCCC"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Background="White">
-                            <ScrollViewer x:Name="PART_ContentHost"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Template.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Template.Value>
         </Style>
     </Window.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <Border Grid.Row="0" Background="White" Margin="10,10,10,5" Padding="15" CornerRadius="8">
-            <Border.Effect>
-                <DropShadowEffect Color="#DDDDDD" BlurRadius="10" ShadowDepth="2" Opacity="0.5"/>
-            </Border.Effect>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                
-                <TextBlock Grid.Column="0" Text="🌐 Địa chỉ HA:" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,15,0" Foreground="#333333"/>
-                
-                <TextBox Grid.Column="1" x:Name="txtUrl" FontSize="16" Margin="0,0,10,0"/>
-                
-                <Button Grid.Column="2" Content="📋 Dán (Paste)" FontSize="15" Margin="0,0,10,0" Click="BtnPaste_Click" Background="#4CAF50"/>
-                
-                <Button Grid.Column="3" Content="🚀 Kết Nối" FontSize="15" Click="BtnConnect_Click"/>
-            </Grid>
-        </Border>
-
-        <TabControl Grid.Row="1" FontSize="16" Margin="10,5,10,10" Background="White" BorderThickness="0">
-            <TabItem Header="📱 Giao Diện Trình Duyệt">
-                <Grid Margin="0,10,0,0">
-                    <wv2:WebView2 Name="haWebView" />
+        <TabControl FontSize="15" Margin="5" Background="White" BorderThickness="0">
+            <TabItem Header="🌐 Camera &amp; Web">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="#F9F9F9" Padding="5" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📍 Đang kết nối:" VerticalAlignment="Center" Margin="5,0,10,0" Foreground="#666" FontSize="12"/>
+                            <TextBlock x:Name="lblCurrentUrl" Text="Chưa kết nối" VerticalAlignment="Center" FontWeight="Bold" Foreground="#0078D4" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+                    <wv2:WebView2 Name="haWebView" Grid.Row="1" />
                 </Grid>
             </TabItem>
 
-            <TabItem Header="⚡ Bảng Điều Khiển Nhanh">
-                <Grid>
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="ĐIỀU KHIỂN THIẾT BỊ BẰNG API" FontSize="26" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30" Foreground="#444444"/>
+            <TabItem Header="⚡ Điều Khiển Nhanh">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="BẢNG ĐIỀU KHIỂN" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30" Foreground="#333"/>
+                    <Button Content="💡 Bật/Tắt Đèn Khách" Width="280" Height="50" Margin="0,0,0,10" Click="BtnToggleDevice_Click" Tag="light.den_khach"/>
+                    <Button Content="💡 Bật/Tắt Đèn Ngủ" Width="280" Height="50" Margin="0,0,0,10" Click="BtnToggleDevice_Click" Tag="light.den_ngu"/>
+                    <Button Content="🔌 Bật/Tắt Quạt" Width="280" Height="50" Margin="0,0,0,10" Click="BtnToggleDevice_Click" Tag="switch.quat_tran"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="⚙️ Cài Đặt">
+                <Grid Margin="50">
+                    <StackPanel MaxWidth="600" HorizontalAlignment="Left">
+                        <TextBlock Text="CẤU HÌNH KẾT NỐI" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
                         
-                        <Button Content="💡 Bật/Tắt Đèn Khách" Width="300" Height="60" FontSize="18" Margin="0,0,0,15" Click="BtnToggleDevice_Click" Tag="light.den_khach"/>
+                        <TextBlock Text="Đường dẫn Home Assistant (URL):" Margin="0,0,0,5"/>
+                        <TextBox x:Name="txtUrlSetting" Padding="8" Margin="0,0,0,15"/>
+
+                        <TextBlock Text="Mã truy cập (Long-Lived Access Token):" Margin="0,0,0,5"/>
+                        <TextBox x:Name="txtTokenSetting" Padding="8" Margin="0,0,0,20" Height="80" TextWrapping="Wrap" AcceptsReturn="True"/>
+
+                        <Button Content="🚀 LƯU VÀ KẾT NỐI NGAY" Height="45" Background="#4CAF50" Click="BtnSaveAndConnect_Click"/>
                         
-                        <Button Content="💡 Bật/Tắt Đèn Ngủ" Width="300" Height="60" FontSize="18" Margin="0,0,0,15" Click="BtnToggleDevice_Click" Tag="light.den_ngu"/>
-                        
-                        <Button Content="🔌 Bật/Tắt Quạt" Width="300" Height="60" FontSize="18" Margin="0,0,0,15" Click="BtnToggleDevice_Click" Tag="switch.quat_tran"/>
+                        <TextBlock Text="* Lưu ý: Token được lấy trong phần Profile -> Security của Home Assistant." 
+                                   FontStyle="Italic" Foreground="#888" Margin="0,15,0,0" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Grid>
             </TabItem>

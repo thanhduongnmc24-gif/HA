@@ -11,72 +11,66 @@ namespace HA
 {
     public partial class MainWindow : Window
     {
-        // Link không còn cứng nữa, sẽ linh hoạt lấy từ ô Text
-        private string haUrl = ""; 
-        
-        // Token thì anh hai vẫn dán vào đây nghen
-        private readonly string haToken = "DÁN_LONG_LIVED_ACCESS_TOKEN_VÀO_ĐÂY"; 
-
+        private string haUrl = "";
+        private string haToken = "";
         private static readonly HttpClient client = new HttpClient();
 
         public MainWindow()
         {
             InitializeComponent();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", haToken);
         }
 
-       // Sự kiện khi bấm nút Dán (Paste)
-        private void BtnPaste_Click(object sender, RoutedEventArgs e)
+        // Nút Lưu và Kết Nối ở Tab Cài đặt
+        private async void BtnSaveAndConnect_Click(object sender, RoutedEventArgs e)
         {
-            if (Clipboard.ContainsText())
+            // [Suy luận] Dùng FindName để né lỗi gạch đỏ trên Linux Codespaces cho anh hai
+            var txtUrl = this.FindName("txtUrlSetting") as TextBox;
+            var txtToken = this.FindName("txtTokenSetting") as TextBox;
+            var lblUrl = this.FindName("lblCurrentUrl") as TextBlock;
+
+            if (txtUrl == null || txtToken == null) return;
+
+            haUrl = txtUrl.Text.Trim();
+            haToken = txtToken.Text.Trim();
+
+            if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
             {
-                // Mò tìm ô textbox bằng code thay vì gọi trực tiếp
-                if (this.FindName("txtUrl") is TextBox txtBox)
-                {
-                    txtBox.Text = Clipboard.GetText();
-                }
+                MessageBox.Show("Anh hai điền thiếu thông tin kìa!", "Tèo báo lỗi");
+                return;
             }
-        }
 
-        // Sự kiện khi bấm Kết Nối
-        private async void BtnConnect_Click(object sender, RoutedEventArgs e)
-        {
-            if (this.FindName("txtUrl") is TextBox txtBox)
+            if (!haUrl.StartsWith("http")) haUrl = "http://" + haUrl;
+
+            // Cấu hình Header cho HTTP Client
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", haToken);
+
+            // Cập nhật trạng thái hiển thị
+            if (lblUrl != null) lblUrl.Text = haUrl;
+
+            // Tải trang Web
+            try
             {
-                string urlInput = txtBox.Text.Trim();
-                
-                if (string.IsNullOrEmpty(urlInput))
-                {
-                    MessageBox.Show("Anh hai chưa nhập link kìa!", "Tèo báo lỗi");
-                    return;
-                }
-
-                // Tự động thêm http nếu anh hai copy thiếu
-                if (!urlInput.StartsWith("http"))
-                {
-                    urlInput = "http://" + urlInput;
-                    txtBox.Text = urlInput; // Cập nhật lại giao diện
-                }
-
-                // Cập nhật lại đường dẫn cho API
-                haUrl = urlInput;
-
-                // Chạy WebView
                 await haWebView.EnsureCoreWebView2Async(null);
                 haWebView.Source = new Uri(haUrl);
+                MessageBox.Show("Đã lưu cấu hình và đang kết nối...", "Tèo thông báo");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi kết nối: " + ex.Message);
             }
         }
+
         private async void BtnToggleDevice_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(haUrl))
+            if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
             {
-                MessageBox.Show("Anh hai phải dán link và bấm 'Kết Nối' trước đã nghen!", "Tèo nhắc nhở");
+                MessageBox.Show("Anh hai qua tab Cài đặt cấu hình trước đã nhé!", "Tèo nhắc nhở");
                 return;
             }
 
             if (sender is Button btn && btn.Tag is string entityId)
             {
-                btn.IsEnabled = false; 
+                btn.IsEnabled = false;
                 await ToggleDeviceAsync(entityId);
                 btn.IsEnabled = true;
             }
@@ -86,22 +80,21 @@ namespace HA
         {
             try
             {
-                string domain = entityId.Split('.')[0]; 
-                string apiUrl = $"{haUrl}/api/services/{domain}/toggle";
+                string domain = entityId.Split('.')[0];
+                string apiUrl = $"{haUrl.TrimEnd('/')}/api/services/{domain}/toggle";
 
                 string jsonPayload = $"{{\"entity_id\": \"{entityId}\"}}";
                 var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-                HttpResponseMessage response = await client.PostAsync(apiUrl, content);
-
+                var response = await client.PostAsync(apiUrl, content);
                 if (!response.IsSuccessStatusCode)
                 {
-                    MessageBox.Show($"Lỗi gọi API. Mã lỗi: {response.StatusCode}", "Tèo báo lỗi");
+                    MessageBox.Show($"Lỗi API: {response.StatusCode}", "Tèo báo lỗi");
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Mất kết nối hoặc có biến: {ex.Message}", "Tèo báo lỗi");
+                MessageBox.Show($"Có biến rồi anh hai: {ex.Message}");
             }
         }
     }
