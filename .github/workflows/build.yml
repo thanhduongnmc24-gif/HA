@@ -1,0 +1,28 @@
+name: San Xuat App HA
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest # Thuê máy ảo chạy Windows
+
+    steps:
+    - name: 1. Tải code của anh hai về máy ảo
+      uses: actions/checkout@v4
+
+    - name: 2. Cài đặt môi trường .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: 3. Nấu code thành 1 file .exe duy nhất
+      # Lệnh này sẽ build thư mục HA và nhét kết quả vào thư mục "output_app"
+      run: dotnet publish HA/HA.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o output_app
+
+    - name: 4. Đóng gói và giao hàng lên web
+      uses: actions/upload-artifact@v4
+      with:
+        name: HA-App-Windows-x64 # Tên gói hàng
+        path: output_app/HA.exe  # Chỉ lấy đúng 1 file exe này thôi
