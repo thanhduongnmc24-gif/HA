@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -12,7 +15,14 @@ using System.Windows.Data;
 
 namespace HA
 {
-    // Cập nhật DeviceItem để hỗ trợ đổi màu và Trạng thái (Bật/Tắt)
+    // Cấu trúc để lưu vào file JSON
+    public class AppData
+    {
+        public string Url { get; set; } = "";
+        public string Token { get; set; } = "";
+        public List<DeviceItem> SavedDevices { get; set; } = new List<DeviceItem>();
+    }
+
     public class DeviceItem : INotifyPropertyChanged
     {
         private string _name = string.Empty;
@@ -26,7 +36,6 @@ namespace HA
         public string Name { get => _name; set { _name = value; OnPropertyChanged("Name"); } }
         public string EntityId { get => _entityId; set { _entityId = value; OnPropertyChanged("EntityId"); } }
         
-        // Khi đổi phòng trong DataGrid, tự động cập nhật lại danh sách sắp xếp
         public string Room { get => _room; set { _room = value; OnPropertyChanged("Room"); } }
         public int RoomOrder { get => _roomOrder; set { _roomOrder = value; OnPropertyChanged("RoomOrder"); } }
 
@@ -34,14 +43,13 @@ namespace HA
         public string ColorOff { get => _colorOff; set { _colorOff = value; OnPropertyChanged("ColorOff"); OnPropertyChanged("CurrentColor"); } }
         public bool IsOn { get => _isOn; set { _isOn = value; OnPropertyChanged("IsOn"); OnPropertyChanged("CurrentColor"); } }
 
-        // [Suy luận] Thuộc tính này quyết định nút sẽ hiện màu gì
+        // System.Text.Json sẽ tự động bỏ qua thuộc tính chỉ có Get
         public string CurrentColor => IsOn ? ColorOn : ColorOff;
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 
-    // [Suy luận] Bộ so sánh giúp sắp xếp các nhóm theo ý đồ của anh hai thay vì alphabet
     public class DeviceOrderComparer : System.Collections.IComparer
     {
         public int Compare(object? x, object? y)
@@ -61,11 +69,11 @@ namespace HA
         private string haUrl = "";
         private string haToken = "";
         private static readonly HttpClient client = new HttpClient();
+        private readonly string dataFilePath = "ha_database.json"; // [Suy luận] Tên file lưu dữ liệu
         
         public ObservableCollection<DeviceItem> Devices { get; set; } = new ObservableCollection<DeviceItem>();
         public ObservableCollection<string> RoomsList { get; set; } = new ObservableCollection<string>();
         
-        // Cung cấp danh sách màu sắc đẹp mắt cho anh hai chọn
         public string[] AvailableColors { get; } = new string[] 
         { 
             "Gray", "Green", "Blue", "Red", "Orange", 
@@ -84,6 +92,68 @@ namespace HA
             
             if (icGroups != null) icGroups.ItemsSource = view;
             if (dg != null) dg.ItemsSource = Devices;
+
+            // [TRỌNG TÂM] Load dữ liệu ngay khi vừa mở app
+            LoadData();
+        }
+
+        // --- CÁC HÀM LƯU / ĐỌC DỮ LIỆU ---
+        private void SaveData()
+        {
+            try
+            {
+                var data = new AppData
+                {
+                    Url = haUrl,
+                    Token = haToken,
+                    SavedDevices = Devices.ToList()
+                };
+                string json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(dataFilePath, json);
+            }
+            catch { /* Lỗi ghi file thì lờ đi tạm thời để không crash app */ }
+        }
+
+        private void LoadData()
+        {
+            try
+            {
+                if (File.Exists(dataFilePath))
+                {
+                    string json = File.ReadAllText(dataFilePath);
+                    var data = JsonSerializer.Deserialize<AppData>(json);
+                    
+                    if (data != null)
+                    {
+                        haUrl = data.Url;
+                        haToken = data.Token;
+
+                        // Đổ dữ liệu ra các ô text bên Tab Cài đặt
+                        var txtUrl = this.FindName("txtUrlSetting") as TextBox;
+                        var txtToken = this.FindName("txtTokenSetting") as TextBox;
+                        var lblUrl = this.FindName("lblCurrentUrl") as TextBlock;
+
+                        if (txtUrl != null) txtUrl.Text = haUrl;
+                        if (txtToken != null) txtToken.Text = haToken;
+                        if (lblUrl != null && !string.IsNullOrEmpty(haUrl)) lblUrl.Text = haUrl;
+
+                        // Gắn lại token nếu có sẵn
+                        if (!string.IsNullOrEmpty(haToken))
+                        {
+                            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", haToken);
+                        }
+
+                        // Đổ danh sách thiết bị ra bảng
+                        foreach (var item in data.SavedDevices)
+                        {
+                            item.PropertyChanged += DeviceItem_PropertyChanged;
+                            Devices.Add(item);
+                        }
+                        UpdateDevicesRoomOrder();
+                    }
+                }
+            }
+            catch { /* Nếu file lỗi format thì mở trắng như bình thường */ }
         }
 
         private void BtnAddDevice_Click(object sender, RoutedEventArgs e)
@@ -104,11 +174,11 @@ namespace HA
                 ColorOff = cbOff?.SelectedItem?.ToString() ?? "Gray"
             };
 
-            // Lắng nghe sự kiện nếu anh hai sửa tên phòng trong DataGrid
             newDevice.PropertyChanged += DeviceItem_PropertyChanged;
             Devices.Add(newDevice);
             
             UpdateDevicesRoomOrder();
+            SaveData(); // [Suy luận] Ghi lại ngay khi có thiết bị mới
 
             txtName.Clear();
             txtId.Clear();
@@ -116,13 +186,15 @@ namespace HA
 
         private void DeviceItem_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            // Cập nhật lại danh sách nếu anh hai sửa tên phòng trong bảng
             if (e.PropertyName == "Room") {
                 UpdateDevicesRoomOrder();
             }
+            // [Suy luận] Lưu lại dữ liệu khi anh hai đổi tên/phòng/màu trong bảng
+            if (e.PropertyName != "IsOn" && e.PropertyName != "CurrentColor") {
+                SaveData(); 
+            }
         }
 
-        // --- CÁC HÀM XỬ LÝ SẮP XẾP NHÓM LÊN/XUỐNG ---
         private void BtnMoveGroupUp_Click(object sender, RoutedEventArgs e)
         {
             var lst = this.FindName("lstGroups") as ListBox;
@@ -135,6 +207,7 @@ namespace HA
             lst.SelectedIndex = index - 1;
             
             UpdateDevicesRoomOrder();
+            SaveData();
         }
 
         private void BtnMoveGroupDown_Click(object sender, RoutedEventArgs e)
@@ -149,11 +222,11 @@ namespace HA
             lst.SelectedIndex = index + 1;
 
             UpdateDevicesRoomOrder();
+            SaveData();
         }
 
         private void UpdateDevicesRoomOrder()
         {
-            // Bổ sung các phòng mới vào RoomsList nếu chưa có
             foreach (var d in Devices) {
                 if (!RoomsList.Contains(d.Room)) {
                     RoomsList.Add(d.Room);
@@ -161,19 +234,18 @@ namespace HA
                 d.RoomOrder = RoomsList.IndexOf(d.Room);
             }
 
-            // Áp dụng thuật toán tự động sắp xếp lên giao diện (Tab 2)
             if (CollectionViewSource.GetDefaultView(Devices) is ListCollectionView view) {
                 view.CustomSort = new DeviceOrderComparer();
                 view.Refresh();
             }
         }
 
-        // --- CÁC HÀM GIAO TIẾP VỚI HOME ASSISTANT ---
         private void BtnDeleteDevice_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.DataContext is DeviceItem item) {
                 item.PropertyChanged -= DeviceItem_PropertyChanged;
                 Devices.Remove(item);
+                SaveData(); // Xóa xong phải ghi lại
             }
         }
 
@@ -194,6 +266,8 @@ namespace HA
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", haToken);
             if (lblUrl != null) lblUrl.Text = haUrl;
 
+            SaveData(); // Bấm lưu kết nối là ghi lại liền
+
             try {
                 await haWebView.EnsureCoreWebView2Async(null);
                 haWebView.Source = new Uri(haUrl);
@@ -206,12 +280,12 @@ namespace HA
             {
                 if (string.IsNullOrEmpty(haUrl)) { MessageBox.Show("Anh hai chưa cấu hình URL kìa!"); return; }
                 
-                btn.IsEnabled = false; // Khoá tạm thời tránh click nhầm 2 lần
+                btn.IsEnabled = false; 
                 bool success = await ToggleDeviceAsync(item.EntityId);
                 
-                // Nếu gọi API thành công thì Tèo mới đổi trạng thái & màu sắc
                 if (success) {
                     item.IsOn = !item.IsOn;
+                    // Chỗ này không cần SaveData() để tránh ghi file quá nhiều lần lúc bật tắt đèn
                 }
                 btn.IsEnabled = true;
             }
