@@ -44,31 +44,39 @@
             </TabItem>
 
             <TabItem Header="⚡ Điều Khiển Nhanh">
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="BẢNG ĐIỀU KHIỂN" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30" Foreground="#333"/>
-                    <Button Content="💡 Bật/Tắt Đèn Khách" Width="280" Height="50" Margin="0,0,0,10" Click="BtnToggleDevice_Click" Tag="light.den_khach"/>
-                    <Button Content="💡 Bật/Tắt Đèn Ngủ" Width="280" Height="50" Margin="0,0,0,10" Click="BtnToggleDevice_Click" Tag="light.den_ngu"/>
-                    <Button Content="🔌 Bật/Tắt Quạt" Width="280" Height="50" Margin="0,0,0,10" Click="BtnToggleDevice_Click" Tag="switch.quat_tran"/>
-                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20">
+                        <TextBlock Text="BẢNG ĐIỀU KHIỂN THIẾT BỊ" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30" Foreground="#333"/>
+                        <WrapPanel x:Name="pnlDevices" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="⚙️ Cài Đặt">
-                <Grid Margin="50">
-                    <StackPanel MaxWidth="600" HorizontalAlignment="Left">
-                        <TextBlock Text="CẤU HÌNH KẾT NỐI" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
-                        
-                        <TextBlock Text="Đường dẫn Home Assistant (URL):" Margin="0,0,0,5"/>
-                        <TextBox x:Name="txtUrlSetting" Padding="8" Margin="0,0,0,15"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="50">
+                        <StackPanel MaxWidth="600" HorizontalAlignment="Left">
+                            <TextBlock Text="CẤU HÌNH KẾT NỐI" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
+                            <TextBlock Text="Đường dẫn Home Assistant (URL):" Margin="0,0,0,5"/>
+                            <TextBox x:Name="txtUrlSetting" Padding="8" Margin="0,0,0,15"/>
+                            <TextBlock Text="Mã truy cập (Long-Lived Access Token):" Margin="0,0,0,5"/>
+                            <TextBox x:Name="txtTokenSetting" Padding="8" Margin="0,0,0,20" Height="80" TextWrapping="Wrap" AcceptsReturn="True"/>
+                            <Button Content="🚀 LƯU VÀ KẾT NỐI NGAY" Height="45" Background="#4CAF50" Click="BtnSaveAndConnect_Click"/>
 
-                        <TextBlock Text="Mã truy cập (Long-Lived Access Token):" Margin="0,0,0,5"/>
-                        <TextBox x:Name="txtTokenSetting" Padding="8" Margin="0,0,0,20" Height="80" TextWrapping="Wrap" AcceptsReturn="True"/>
+                            <Separator Margin="0,30" Background="#EEE"/>
 
-                        <Button Content="🚀 LƯU VÀ KẾT NỐI NGAY" Height="45" Background="#4CAF50" Click="BtnSaveAndConnect_Click"/>
-                        
-                        <TextBlock Text="* Lưu ý: Token được lấy trong phần Profile -> Security của Home Assistant." 
-                                   FontStyle="Italic" Foreground="#888" Margin="0,15,0,0" TextWrapping="Wrap"/>
-                    </StackPanel>
-                </Grid>
+                            <TextBlock Text="THÊM THIẾT BỊ MỚI" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
+                            <TextBlock Text="Tên hiển thị (Ví dụ: Đèn Ban Công):" Margin="0,0,0,5"/>
+                            <TextBox x:Name="txtNewDeviceName" Padding="8" Margin="0,0,0,15"/>
+                            <TextBlock Text="Entity ID (Ví dụ: light.ban_cong):" Margin="0,0,0,5"/>
+                            <TextBox x:Name="txtNewEntityId" Padding="8" Margin="0,0,0,20"/>
+                            <Button Content="➕ THÊM VÀO DANH SÁCH" Height="45" Background="#0078D4" Click="BtnAddDevice_Click"/>
+
+                            <TextBlock Text="* Lưu ý: Token được lấy trong phần Profile -> Security của Home Assistant." 
+                                       FontStyle="Italic" Foreground="#888" Margin="0,25,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
     </Grid>

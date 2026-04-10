@@ -20,10 +20,9 @@ namespace HA
             InitializeComponent();
         }
 
-        // Nút Lưu và Kết Nối ở Tab Cài đặt
+        // Lưu cấu hình HA
         private async void BtnSaveAndConnect_Click(object sender, RoutedEventArgs e)
         {
-            // [Suy luận] Dùng FindName để né lỗi gạch đỏ trên Linux Codespaces cho anh hai
             var txtUrl = this.FindName("txtUrlSetting") as TextBox;
             var txtToken = this.FindName("txtTokenSetting") as TextBox;
             var lblUrl = this.FindName("lblCurrentUrl") as TextBlock;
@@ -41,13 +40,10 @@ namespace HA
 
             if (!haUrl.StartsWith("http")) haUrl = "http://" + haUrl;
 
-            // Cấu hình Header cho HTTP Client
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", haToken);
 
-            // Cập nhật trạng thái hiển thị
             if (lblUrl != null) lblUrl.Text = haUrl;
 
-            // Tải trang Web
             try
             {
                 await haWebView.EnsureCoreWebView2Async(null);
@@ -58,6 +54,46 @@ namespace HA
             {
                 MessageBox.Show("Lỗi kết nối: " + ex.Message);
             }
+        }
+
+        // [Suy luận] Hàm xử lý thêm thiết bị mới vào Tab Điều khiển
+        private void BtnAddDevice_Click(object sender, RoutedEventArgs e)
+        {
+            var txtName = this.FindName("txtNewDeviceName") as TextBox;
+            var txtId = this.FindName("txtNewEntityId") as TextBox;
+            var pnl = this.FindName("pnlDevices") as WrapPanel;
+
+            if (txtName == null || txtId == null || pnl == null) return;
+
+            string name = txtName.Text.Trim();
+            string entityId = txtId.Text.Trim();
+
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(entityId))
+            {
+                MessageBox.Show("Anh hai nhập đủ Tên và Entity ID giùm Tèo nha!", "Tèo nhắc nè");
+                return;
+            }
+
+            // [Suy luận] Tạo Button động và gán Style từ Resources của Window
+            Button newBtn = new Button
+            {
+                Content = $"💡 {name}",
+                Tag = entityId,
+                Width = 280,
+                Height = 50,
+                Margin = new Thickness(10),
+                Style = (Style)this.Resources[typeof(Button)]
+            };
+
+            // Gán sự kiện Click dùng chung logic cũ
+            newBtn.Click += BtnToggleDevice_Click;
+
+            pnl.Children.Add(newBtn);
+
+            // Xóa trắng để anh hai nhập cái tiếp theo cho nhanh
+            txtName.Clear();
+            txtId.Clear();
+            MessageBox.Show($"Đã thêm '{name}' thành công rồi đó anh hai!", "Tèo xong việc");
         }
 
         private async void BtnToggleDevice_Click(object sender, RoutedEventArgs e)
