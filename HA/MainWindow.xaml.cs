@@ -1,246 +1,101 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text.Json;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
+using Microsoft.Web.WebView2.Core;
 
 namespace HA
 {
     public partial class MainWindow : Window
     {
-        // Danh sách thiết bị hiển thị trên Canvas
-        public ObservableCollection<DeviceModel> Devices { get; set; } = new ObservableCollection<DeviceModel>();
-        
-        private bool _isEditMode = false;
-        private DeviceModel _draggingDevice = null;
-        private Point _lastMousePosition;
-        private string _configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dashboard_config.json");
+        private string haUrl = "";
+        private string haToken = "";
+        private static readonly HttpClient client = new HttpClient();
 
         public MainWindow()
         {
             InitializeComponent();
-            LoadDashboardData();
-            icDashboard.ItemsSource = Devices;
         }
 
-        #region LOGIC DASHBOARD & KÉO THẢ
-
-        private void BtnToggleEdit_Click(object sender, RoutedEventArgs e)
+        // Nút Lưu và Kết Nối ở Tab Cài đặt
+        private async void BtnSaveAndConnect_Click(object sender, RoutedEventArgs e)
         {
-            _isEditMode = btnToggleEdit.IsChecked ?? false;
-            pnlEditTools.Visibility = _isEditMode ? Visibility.Visible : Visibility.Collapsed;
-            
-            // Cập nhật con trỏ chuột cho các thiết bị
-            foreach (var d in Devices) d.UpdateCursor(_isEditMode);
+            // [Suy luận] Dùng FindName để né lỗi gạch đỏ trên Linux Codespaces cho anh hai
+            var txtUrl = this.FindName("txtUrlSetting") as TextBox;
+            var txtToken = this.FindName("txtTokenSetting") as TextBox;
+            var lblUrl = this.FindName("lblCurrentUrl") as TextBlock;
 
-            if (!_isEditMode)
-            {
-                // Bỏ chọn tất cả khi thoát chế độ sửa
-                foreach (var d in Devices) d.IsSelected = false;
-            }
-        }
+            if (txtUrl == null || txtToken == null) return;
 
-        private void Device_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (!_isEditMode)
+            haUrl = txtUrl.Text.Trim();
+            haToken = txtToken.Text.Trim();
+
+            if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
             {
-                // Chế độ điều khiển: Bật/Tắt thiết bị (giả lập logic cũ)
-                var device = (sender as ContentControl)?.DataContext as DeviceModel;
-                if (device != null)
-                {
-                    // Gọi hàm xử lý API HA của anh hai ở đây
-                    MessageBox.Show($"Đang gửi lệnh tới: {device.EntityId}");
-                }
+                MessageBox.Show("Anh hai điền thiếu thông tin kìa!", "Tèo báo lỗi");
                 return;
             }
 
-            // Chế độ sửa: Xử lý kéo thả và chọn
-            var element = sender as ContentControl;
-            var deviceData = element?.DataContext as DeviceModel;
+            if (!haUrl.StartsWith("http")) haUrl = "http://" + haUrl;
 
-            if (deviceData != null)
+            // Cấu hình Header cho HTTP Client
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", haToken);
+
+            // Cập nhật trạng thái hiển thị
+            if (lblUrl != null) lblUrl.Text = haUrl;
+
+            // Tải trang Web
+            try
             {
-                if (Keyboard.Modifiers == ModifierKeys.Control)
-                {
-                    deviceData.IsSelected = !deviceData.IsSelected;
-                }
-                else
-                {
-                    if (!deviceData.IsSelected)
-                    {
-                        foreach (var d in Devices) d.IsSelected = false;
-                        deviceData.IsSelected = true;
-                    }
-                }
-
-                _draggingDevice = deviceData;
-                _lastMousePosition = e.GetPosition(this);
-                element.CaptureMouse();
-                e.Handled = true;
+                await haWebView.EnsureCoreWebView2Async(null);
+                haWebView.Source = new Uri(haUrl);
+                MessageBox.Show("Đã lưu cấu hình và đang kết nối...", "Tèo thông báo");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi kết nối: " + ex.Message);
             }
         }
 
-        private void Device_MouseMove(object sender, MouseEventArgs e)
+        private async void BtnToggleDevice_Click(object sender, RoutedEventArgs e)
         {
-            if (_isEditMode && _draggingDevice != null && (sender as ContentControl).IsMouseCaptured)
+            if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
             {
-                Point currentPos = e.GetPosition(this);
-                double diffX = currentPos.X - _lastMousePosition.X;
-                double diffY = currentPos.Y - _lastMousePosition.Y;
-
-                // Nếu đang chọn nhiều, kéo cả đám đi cùng
-                var selectedItems = Devices.Where(d => d.IsSelected).ToList();
-                foreach (var item in selectedItems)
-                {
-                    item.X += diffX;
-                    item.Y += diffY;
-                }
-
-                _lastMousePosition = currentPos;
-            }
-        }
-
-        private void Device_MouseUp(object sender, MouseButtonEventArgs e)
-        {
-            if (_isEditMode)
-            {
-                (sender as ContentControl)?.ReleaseMouseCapture();
-                _draggingDevice = null;
-            }
-        }
-
-        private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            // Click ra vùng trống Canvas để bỏ chọn
-            if (_isEditMode)
-            {
-                foreach (var d in Devices) d.IsSelected = false;
-            }
-        }
-
-        #endregion
-
-        #region CĂN CHỈNH & LƯU TRỮ
-
-        private void BtnAlignHorizontal_Click(object sender, RoutedEventArgs e)
-        {
-            var selected = Devices.Where(d => d.IsSelected).ToList();
-            if (selected.Count < 2) return;
-
-            double targetY = selected[0].Y;
-            foreach (var item in selected) item.Y = targetY;
-        }
-
-        private void BtnAlignVertical_Click(object sender, RoutedEventArgs e)
-        {
-            var selected = Devices.Where(d => d.IsSelected).ToList();
-            if (selected.Count < 2) return;
-
-            double targetX = selected[0].X;
-            foreach (var item in selected) item.X = targetX;
-        }
-
-        private void BtnAddDevice_Click(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(txtNewDeviceName.Text) || string.IsNullOrWhiteSpace(txtNewDeviceEntity.Text))
-            {
-                MessageBox.Show("Vui lòng nhập đầy đủ thông tin thiết bị!");
+                MessageBox.Show("Anh hai qua tab Cài đặt cấu hình trước đã nhé!", "Tèo nhắc nhở");
                 return;
             }
 
-            Devices.Add(new DeviceModel 
-            { 
-                Name = txtNewDeviceName.Text, 
-                EntityId = txtNewDeviceEntity.Text,
-                X = 50, Y = 50 
-            });
-
-            txtNewDeviceName.Clear();
-            txtNewDeviceEntity.Clear();
-            SaveDashboardData();
-            MessageBox.Show("Đã thêm thiết bị! Qua tab Dashboard để sắp xếp.");
+            if (sender is Button btn && btn.Tag is string entityId)
+            {
+                btn.IsEnabled = false;
+                await ToggleDeviceAsync(entityId);
+                btn.IsEnabled = true;
+            }
         }
 
-        private void BtnSaveLayout_Click(object sender, RoutedEventArgs e)
-        {
-            SaveDashboardData();
-            MessageBox.Show("Đã lưu vị trí các nút bấm!");
-        }
-
-        private void SaveDashboardData()
+        private async Task ToggleDeviceAsync(string entityId)
         {
             try
             {
-                string json = JsonSerializer.Serialize(Devices);
-                File.WriteAllText(_configPath, json);
-            }
-            catch (Exception ex) { Console.WriteLine(ex.Message); }
-        }
+                string domain = entityId.Split('.')[0];
+                string apiUrl = $"{haUrl.TrimEnd('/')}/api/services/{domain}/toggle";
 
-        private void LoadDashboardData()
-        {
-            if (File.Exists(_configPath))
-            {
-                try
+                string jsonPayload = $"{{\"entity_id\": \"{entityId}\"}}";
+                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                var response = await client.PostAsync(apiUrl, content);
+                if (!response.IsSuccessStatusCode)
                 {
-                    string json = File.ReadAllText(_configPath);
-                    var list = JsonSerializer.Deserialize<List<DeviceModel>>(json);
-                    if (list != null)
-                    {
-                        Devices.Clear();
-                        foreach (var item in list) Devices.Add(item);
-                    }
+                    MessageBox.Show($"Lỗi API: {response.StatusCode}", "Tèo báo lỗi");
                 }
-                catch { }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Có biến rồi anh hai: {ex.Message}");
             }
         }
-
-        // Logic cũ của anh hai
-        private void BtnSaveAndConnect_Click(object sender, RoutedEventArgs e)
-        {
-            lblCurrentUrl.Text = txtUrlSetting.Text;
-            if (!string.IsNullOrEmpty(txtUrlSetting.Text))
-                haWebView.Source = new Uri(txtUrlSetting.Text);
-        }
-
-        private void BtnToggleDevice_Click(object sender, RoutedEventArgs e) { /* Giữ lại logic API cũ nếu cần */ }
-
-        #endregion
-    }
-
-    // Model dữ liệu thiết bị
-    public class DeviceModel : INotifyPropertyChanged
-    {
-        private string _name;
-        private string _entityId;
-        private double _x;
-        private double _y;
-        private bool _isSelected;
-        private Cursor _cursorType = Cursors.Hand;
-
-        public string Name { get => _name; set { _name = value; OnPropertyChanged(); } }
-        public string EntityId { get => _entityId; set { _entityId = value; OnPropertyChanged(); } }
-        public double X { get => _x; set { _x = value; OnPropertyChanged(); } }
-        public double Y { get => _y; set { _y = value; OnPropertyChanged(); } }
-        public bool IsSelected { get => _isSelected; set { _isSelected = value; OnPropertyChanged(); } }
-        
-        public Cursor CursorType { get => _cursorType; set { _cursorType = value; OnPropertyChanged(); } }
-        public SolidColorBrush StatusColor => new SolidColorBrush(Color.FromRgb(0, 120, 212)); // Màu mặc định
-
-        public void UpdateCursor(bool editMode)
-        {
-            CursorType = editMode ? Cursors.SizeAll : Cursors.Hand;
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string name = null)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }
